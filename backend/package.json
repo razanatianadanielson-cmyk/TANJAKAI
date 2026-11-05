@@ -1,0 +1,57 @@
+{
+  "name": "tanjakai-backend",
+  "version": "0.1.0",
+  "description": "API REST — Plateforme de Suivi et de Notation Pondérée des Pôles (TANJAKAI)",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "migrate": "node src/db/migrate.js",
+    "db:diagnostic": "node src/db/diagnostic.js",
+    "seed": "node src/db/seed.js",
+    "test": "jest --runInBand && node --test \"tests/engine/*.test.js\"",
+    "test:engine": "node --test \"tests/engine/*.test.js\"",
+    "seed:demo": "node src/db/seed-demo.js",
+    "test:e2e": "node tests/e2e/parcours.e2e.mjs",
+    "test:e2e:alertes": "node tests/e2e/alertes.e2e.mjs",
+    "test:e2e:securite": "node tests/e2e/securite.e2e.mjs",
+    "test:e2e:cles": "node tests/e2e/cles-service.e2e.mjs",
+    "seed:demo:saisie": "node src/db/seed-demo-saisie.js",
+    "test:e2e:audit": "node tests/e2e/audit.e2e.mjs",
+    "test:e2e:export": "node tests/e2e/export-saisies.e2e.mjs",
+    "demo:reset-alertes": "node src/db/reset-alertes.js",
+    "test:e2e:rattachement": "node tests/e2e/rattachement.e2e.mjs",
+    "test:e2e:syntheses": "node tests/e2e/syntheses.e2e.mjs",
+    "test:e2e:comptes": "node tests/e2e/comptes.e2e.mjs"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": [
+      "<rootDir>/tests/setup.js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/tests/engine/",
+      "/tests/fixtures/"
+    ]
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.13.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
+  }
+}

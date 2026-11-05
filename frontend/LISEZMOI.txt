@@ -1,0 +1,8 @@
+TANJAKAI - Frontend (Next.js) - version 12 : œil sur les mots de passe, orbite retirée
+
+Remplacez dans votre projet : app/, components/, lib/ (supprimez d'abord les anciens dossiers).
+Ne touchez pas à votre package.json, ni à votre .env.local (non inclus ici). Aucun paquet à installer.
+
+Nouveautés : app/globals.css (thème), components/FondReseau.js (fond animé), components/Orbite.js (page de connexion),
+components/ThemeBascule.js (bouton clair/sombre), polices Playfair Display / Inter / JetBrains Mono (next/font/google).
+Les animations se coupent seules si le système demande « réduire les animations ».

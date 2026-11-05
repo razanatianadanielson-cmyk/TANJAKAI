@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API TANJAKAI — documentation</title>
+<style>
+  :root { --encre:#12302a; --safran:#e0a42a; --fond:#f6f4ee; --carte:#fff; --trait:#d9d5c8; --texte:#1d2b27; --doux:#5d6b66; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif; background:var(--fond); color:var(--texte); }
+  header { background:var(--encre); color:#fff; padding:18px 24px; }
+  header h1 { margin:0; font-size:20px; } header p { margin:4px 0 0; color:#c9d6d1; font-size:13px; }
+  main { max-width:1000px; margin:0 auto; padding:16px; }
+  .acces { background:var(--carte); border:1px solid var(--trait); border-radius:10px; padding:14px; display:grid; gap:10px; margin-bottom:16px; }
+  .acces .ligne { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  input, textarea, select { font:inherit; padding:7px 9px; border:1px solid var(--trait); border-radius:6px; background:#fff; }
+  input.long { flex:1; min-width:220px; } textarea { width:100%; font-family:ui-monospace,Consolas,monospace; font-size:13px; min-height:110px; }
+  button { font:inherit; border:0; border-radius:6px; padding:7px 14px; background:var(--encre); color:#fff; cursor:pointer; }
+  button.secondaire { background:#e8e4d6; color:var(--encre); }
+  h2 { font-size:15px; margin:22px 0 8px; color:var(--encre); text-transform:uppercase; letter-spacing:.05em; }
+  details { background:var(--carte); border:1px solid var(--trait); border-radius:8px; margin-bottom:6px; }
+  summary { cursor:pointer; padding:9px 12px; display:flex; gap:10px; align-items:baseline; }
+  .m { font:700 12px ui-monospace,Consolas,monospace; min-width:54px; text-align:center; padding:2px 6px; border-radius:4px; color:#fff; }
+  .get{background:#2f7d6a}.post{background:#b5791a}.put{background:#3b6ea5}.patch{background:#7b5ea7}.delete{background:#a8453b}
+  .chemin { font:13px ui-monospace,Consolas,monospace; } .resume { color:var(--doux); font-size:13px; }
+  .corps { padding:4px 14px 14px; border-top:1px solid var(--trait); display:grid; gap:8px; }
+  .corps label { display:grid; gap:2px; font-size:13px; color:var(--doux); }
+  pre { background:#10201c; color:#dfeee9; padding:10px; border-radius:6px; overflow:auto; max-height:360px; font-size:12.5px; margin:0; }
+  .statut { font-weight:700; } .ok { color:#2f7d6a; } .ko { color:#a8453b; }
+</style>
+</head>
+<body>
+<header>
+  <h1>API TANJAKAI — Suivi et notation pondérée des pôles</h1>
+  <p>Documentation interactive · spécification OpenAPI 3 : <a style="color:var(--safran)" href="openapi.json">openapi.json</a></p>
+</header>
+<main>
+  <section class="acces" aria-label="Accès">
+    <div class="ligne">
+      <input id="email" class="long" placeholder="E-mail" autocomplete="username">
+      <input id="mdp" type="password" class="long" placeholder="Mot de passe" autocomplete="current-password">
+      <button id="connexion">Obtenir un jeton</button>
+    </div>
+    <div class="ligne">
+      <input id="jeton" class="long" placeholder="Jeton d'accès (Bearer)">
+      <input id="cle" class="long" placeholder="Clé de service (X-Service-Key)">
+    </div>
+    <div id="infoAcces" class="resume"></div>
+  </section>
+  <div id="liste">Chargement…</div>
+</main>
+<script src="console.js"></script>
+</body>
+</html>
