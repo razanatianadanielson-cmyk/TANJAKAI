@@ -111,6 +111,37 @@ async function soumettre(user, campagneId, poleId) {
   return plan(user, campagneId, poleId);
 }
 
+/**
+ * Le responsable reprend ses saisies soumises (erreur découverte après « Soumettre ») : elles redeviennent modifiables.
+ * Impossible une fois validées (c'est alors le contrôle de gestion qui renvoie) ou la campagne clôturée. Motif tracé.
+ */
+async function reprendre(user, campagneId, poleId, { motif }) {
+  await db.withTransaction({ userId: user.id, motif: `Reprise des saisies : ${motif}` }, async (client) => {
+    const { campagne, pole } = await contexte(user, campagneId, poleId, client);
+    if (!CAMPAGNE_OUVERTE.includes(campagne.statut)) throw conflict('Campagne clôturée : saisie verrouillée');
+    const n = await repo.reprendre(client, campagneId, poleId);
+    if (!n) throw conflict('Aucune saisie soumise à reprendre (déjà validées ou jamais soumises)');
+    await repo.notifier(client, campagneId, await repo.destinatairesControle(client),
+      `Pôle ${pole.code} : ${n} indicateur(s) repris par le responsable pour correction. Motif : ${motif}`);
+  });
+  return plan(user, campagneId, poleId);
+}
+
+/** Efface la saisie d'un critère (brouillon ou renvoyée) : la ligne redevient vide. Pièces jointes incluses. */
+async function effacer(user, campagneId, poleId, critereId) {
+  await db.withTransaction({ userId: user.id, motif: 'Saisie effacée' }, async (client) => {
+    const { campagne } = await contexte(user, campagneId, poleId, client);
+    if (!CAMPAGNE_OUVERTE.includes(campagne.statut)) throw conflict('Campagne clôturée : saisie verrouillée');
+    const existante = await repo.trouverSaisie(client, campagneId, poleId, critereId);
+    if (!existante) throw notFound('Aucune saisie à effacer pour ce critère');
+    if (!rules.estEditable(existante.statut)) {
+      throw conflict(`Saisie ${existante.statut === 'VALIDEE' ? 'validée' : 'soumise'} : effacement impossible (reprenez-la d'abord)`);
+    }
+    await repo.effacer(client, existante.id);
+  });
+  return plan(user, campagneId, poleId);
+}
+
 /** Validation de toutes les saisies soumises d'un pôle par le contrôle de gestion (jamais par l'auteur de la saisie). */
 async function validerPole(user, campagneId, poleId) {
   const nombre = await db.withTransaction({ userId: user.id, motif: 'Validation des saisies du pôle' }, async (client) => {
@@ -129,4 +160,4 @@ async function avancement(user, campagneId) {
   return { campagne, poles };
 }
 
-module.exports = { plan, enregistrer, soumettre, validerPole, avancement };
+module.exports = { reprendre, effacer, plan, enregistrer, soumettre, validerPole, avancement };

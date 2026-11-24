@@ -12,4 +12,6 @@ const saisieBody = z.object({
   uniteFournie: z.string().max(30).optional(),
 });
 
-module.exports = { idParams, poleParams, critereParams, saisieBody };
+const motifBody = z.object({ motif: z.string().trim().min(5, 'Motif obligatoire (5 caractères minimum)').max(500) });
+
+module.exports = { motifBody, idParams, poleParams, critereParams, saisieBody };

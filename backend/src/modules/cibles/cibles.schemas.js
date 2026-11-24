@@ -18,6 +18,9 @@ const upsertBody = z.object({
   valeurCible: z.number().finite(),
 });
 
+const modifierBody = z.object({ valeurCible: z.number().finite() });
+const supprimerBody = z.object({ motif: z.string().trim().min(5).max(500) });
+
 const validerLotBody = z.object({ exercice, poleId: z.string().uuid().optional() });
 
-module.exports = { idParams, listQuery, upsertBody, validerLotBody };
+module.exports = { modifierBody, supprimerBody, idParams, listQuery, upsertBody, validerLotBody };

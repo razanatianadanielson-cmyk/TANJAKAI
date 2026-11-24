@@ -45,6 +45,23 @@ async function sansCible(client, campagneId, grilleId, exercice) {
   return rows;
 }
 
+async function usage(client, id) {
+  const { rows } = await client.query(
+    `SELECT (SELECT count(*) FROM saisie WHERE campagne_id = $1)::int AS saisies,
+            (SELECT count(*) FROM score_pole WHERE campagne_id = $1)::int AS scores,
+            (SELECT count(*) FROM synthese_trimestrielle WHERE campagne_id = $1)::int AS syntheses`, [id]);
+  return rows[0];
+}
+
+async function majDateLimite(client, id, dateLimite) {
+  await client.query('UPDATE campagne SET date_limite = $2 WHERE id = $1', [id, dateLimite]);
+}
+
+/** Annulation sous le contrôle de fn_annuler_campagne (migration 009) : seule voie qui défait le gel du périmètre. */
+async function supprimer(client, id) {
+  await client.query('SELECT fn_annuler_campagne($1::uuid)', [id]);
+}
+
 async function enregistrerReouverture(client, campagneId, motif, userId) {
   await client.query('INSERT INTO reouverture (campagne_id, motif, reouvert_par) VALUES ($1,$2,$3)', [campagneId, motif, userId]);
   await client.query("UPDATE campagne SET statut = 'ROUVERTE' WHERE id = $1", [campagneId]);
@@ -75,4 +92,4 @@ async function notifier(client, campagneId, destinataireIds, message) {
   }
 }
 
-module.exports = { lister, trouver, verrouiller, cloturer, ouvrir, sansCible, enregistrerReouverture, reouvertures, destinataires, notifier };
+module.exports = { usage, majDateLimite, supprimer, lister, trouver, verrouiller, cloturer, ouvrir, sansCible, enregistrerReouverture, reouvertures, destinataires, notifier };

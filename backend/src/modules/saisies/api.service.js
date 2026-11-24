@@ -81,4 +81,29 @@ async function deposer(cle, cleIdempotence, body) {
   });
 }
 
-module.exports = { deposer };
+/**
+ * Ce que le pôle de la clé doit envoyer : les campagnes ouvertes qui le contiennent, et pour chacune ses critères
+ * (identifiants à utiliser pour déposer, unité, cible gelée, état de la saisie). Un système client n'a ainsi besoin
+ * que de sa clé : il découvre lui-même la campagne et les critères.
+ */
+async function attendues(cle) {
+  const { rows: campagnes } = await db.query(
+    `SELECT c.id, c.exercice, c.trimestre, c.statut, c.date_limite AS "dateLimite"
+       FROM campagne c JOIN campagne_pole cp ON cp.campagne_id = c.id
+      WHERE cp.pole_id = $1 AND c.statut IN ('OUVERTE', 'ROUVERTE')
+      ORDER BY c.exercice DESC, c.trimestre DESC`, [cle.pole_id]);
+  const resultat = [];
+  for (const c of campagnes) {
+    const lignes = await repo.lignes(c.id, cle.pole_id, c.exercice, c.trimestre);
+    resultat.push({
+      campagneId: c.id, exercice: c.exercice, trimestre: c.trimestre, statut: c.statut, dateLimite: c.dateLimite,
+      criteres: lignes.map((l) => ({
+        critereId: l.critereId, intitule: l.intitule, unite: l.unite, valeurCible: l.valeurCible,
+        statut: l.statut || null, valeurRealisee: l.valeurRealisee ?? null,
+      })),
+    });
+  }
+  return { poleId: cle.pole_id, campagnes: resultat };
+}
+
+module.exports = { deposer, attendues };

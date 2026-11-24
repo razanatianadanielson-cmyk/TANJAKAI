@@ -30,6 +30,25 @@ async function update(user, id, data) {
   return repo.findById(id);
 }
 
+/**
+ * Supprime un critère créé par erreur. Refusé dès qu'il sert (cible, grille, campagne, saisie, score) :
+ * on supprime d'abord ses cibles, et un critère déjà dans une grille ou une campagne reste pour l'historique.
+ */
+async function supprimer(user, id, { motif }) {
+  return db.withTransaction({ userId: user.id, motif: `Suppression d'un critère : ${motif}` }, async (client) => {
+    const critere = await repo.verrouiller(client, id);
+    if (!critere) throw notFound('Critère introuvable');
+    const u = await repo.usage(client, id);
+    const emplois = [[u.cibles, 'cible(s)'], [u.grilles, 'grille(s)'], [u.campagnes, 'campagne(s)'], [u.saisies, 'saisie(s)'], [u.scores, 'score(s)']]
+      .filter(([n]) => n > 0).map(([n, l]) => `${n} ${l}`);
+    if (emplois.length) {
+      throw conflict(`Ce critère sert déjà (${emplois.join(', ')}) : il ne peut pas être supprimé.${u.cibles > 0 && !u.grilles && !u.campagnes && !u.saisies && !u.scores ? ' Supprimez d\'abord ses cibles.' : ''}`);
+    }
+    await repo.supprimer(client, id);
+    return { supprime: true };
+  });
+}
+
 /** Définition validée par le contrôle de gestion avant toute activation dans une grille. */
 async function valider(user, id) {
   await db.withTransaction({ userId: user.id, motif: 'Validation de la définition du critère' }, async (client) => {
@@ -41,4 +60,4 @@ async function valider(user, id) {
   return repo.findById(id);
 }
 
-module.exports = { list, getById, create, update, valider };
+module.exports = { supprimer, list, getById, create, update, valider };

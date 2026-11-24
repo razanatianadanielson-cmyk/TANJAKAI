@@ -52,6 +52,21 @@ async function update(client, id, data) {
   await client.query(`UPDATE critere SET ${sets.join(', ')} WHERE id = $1`, params);
 }
 
+/** Où le critère sert déjà : cibles, grilles, périmètres gelés, saisies, scores. */
+async function usage(client, id) {
+  const { rows } = await client.query(
+    `SELECT (SELECT count(*) FROM cible WHERE critere_id = $1)::int AS cibles,
+            (SELECT count(*) FROM ponderation_critere WHERE critere_id = $1)::int AS grilles,
+            (SELECT count(*) FROM campagne_cible WHERE critere_id = $1)::int AS campagnes,
+            (SELECT count(*) FROM saisie WHERE critere_id = $1)::int AS saisies,
+            (SELECT count(*) FROM score_critere WHERE critere_id = $1)::int AS scores`, [id]);
+  return rows[0];
+}
+
+async function supprimer(client, id) {
+  await client.query('DELETE FROM critere WHERE id = $1', [id]);
+}
+
 async function valider(client, id, userId) {
   await client.query(
     'UPDATE critere SET valide = true, valide_par = $2, date_validation = current_date WHERE id = $1',
@@ -64,4 +79,4 @@ async function verrouiller(client, id) {
   return rows[0] || null;
 }
 
-module.exports = { list, findById, insert, update, valider, verrouiller };
+module.exports = { usage, supprimer, list, findById, insert, update, valider, verrouiller };

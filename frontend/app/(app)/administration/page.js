@@ -6,6 +6,7 @@ import { useAuth, LIBELLE_ROLE, ROLES } from '@/lib/auth';
 import { dateHeure, exporterCsv, LIBELLE_EVENEMENT, EVENEMENTS_ALERTE } from '@/lib/format';
 import { PageHeader, Carte, Erreur, Chargement, Vide, Etat, Champ, Message } from '@/components/ui';
 import { Icone } from '@/components/Icones';
+import BoutonSupprimer from '@/components/Suppression';
 
 function NouveauCompte({ onCree }) {
   const vide = { nom: '', prenom: '', email: '', role: ROLES.RESPONSABLE_POLE };
@@ -68,6 +69,16 @@ function Comptes() {
   const { user: moi } = useAuth();
   const [edition, setEdition] = useState(null); // { id, role, motif }
   const [statut, setStatut] = useState(null); // { id, action: 'desactiver' | 'reactiver', motif }
+  const [corr, setCorr] = useState(null); // { id, nom, prenom, email, motif }
+
+  async function corriger(e) {
+    e.preventDefault(); setErreur(null); setMessage(''); setOccupe(true);
+    try {
+      const { nom, prenom, email, motif } = corr;
+      await api(`/utilisateurs/${corr.id}`, { method: 'PATCH', body: { nom, prenom, email, motif } });
+      setMessage('Compte corrigé.'); setCorr(null); comptes.reload();
+    } catch (err) { setErreur(err); } finally { setOccupe(false); }
+  }
 
   async function changerRole(c) {
     setMessage(''); setErreur(null); setOccupe(true);
@@ -124,6 +135,15 @@ function Comptes() {
                         <button type="button" disabled={occupe || edition.role === c.role || edition.motif.trim().length < 5} onClick={() => changerRole(c)}><Icone nom="check" taille={16} />Valider</button>
                         <button type="button" className="secondaire" onClick={() => setEdition(null)}><Icone nom="croix" taille={16} />Annuler</button>
                       </div>
+                    ) : corr && corr.id === c.id ? (
+                      <form onSubmit={corriger} className="actions-form" style={{ alignItems: 'flex-end' }}>
+                        <input aria-label="Nom" placeholder="Nom" value={corr.nom} onChange={(e) => setCorr({ ...corr, nom: e.target.value })} required />
+                        <input aria-label="Prénom" placeholder="Prénom" value={corr.prenom} onChange={(e) => setCorr({ ...corr, prenom: e.target.value })} required />
+                        <input aria-label="Adresse e-mail" type="email" placeholder="E-mail" value={corr.email} onChange={(e) => setCorr({ ...corr, email: e.target.value })} required />
+                        <input aria-label="Motif de la correction" placeholder="Motif (obligatoire)" value={corr.motif} onChange={(e) => setCorr({ ...corr, motif: e.target.value })} required minLength={5} />
+                        <button type="submit" disabled={occupe || corr.motif.trim().length < 5}><Icone nom="check" taille={16} />Enregistrer</button>
+                        <button type="button" className="secondaire" onClick={() => setCorr(null)}><Icone nom="croix" taille={16} />Annuler</button>
+                      </form>
                     ) : statut && statut.id === c.id ? (
                       <div className="actions-form" style={{ alignItems: 'flex-end' }}>
                         <input aria-label="Motif" placeholder={statut.action === 'desactiver' ? 'Motif de la désactivation (obligatoire)' : 'Motif de la réactivation (obligatoire)'} value={statut.motif} onChange={(e) => setStatut({ ...statut, motif: e.target.value })} />
@@ -132,6 +152,8 @@ function Comptes() {
                       </div>
                     ) : (
                     <div className="actions-form">
+                      <button type="button" className="secondaire" disabled={occupe} onClick={() => setCorr({ id: c.id, nom: c.nom, prenom: c.prenom, email: c.email, motif: '' })}><Icone nom="crayon" taille={16} />Corriger</button>
+                      {moi && c.id !== moi.id && <BoutonSupprimer chemin={`/utilisateurs/${c.id}`} onFait={() => { setMessage('Compte supprimé.'); comptes.reload(); }} onErreur={setErreur} avertissement="Possible seulement si le compte n'a jamais servi. Sinon, désactivez-le." />}
                       {moi && c.id !== moi.id && <button type="button" className="secondaire" disabled={occupe} onClick={() => setEdition({ id: c.id, role: c.role, motif: '' })}>Changer le rôle</button>}
                       {moi && c.id !== moi.id && c.actif && <button type="button" className="secondaire" disabled={occupe} onClick={() => setStatut({ id: c.id, action: 'desactiver', motif: '' })}>Désactiver</button>}
                       {!c.actif && <button type="button" disabled={occupe} onClick={() => setStatut({ id: c.id, action: 'reactiver', motif: '' })}>Réactiver</button>}

@@ -42,8 +42,21 @@ const OPS = [
   ['get', '/poles', 'Référentiel', 'Pôles (un responsable ne voit que le sien).', TOUS, { query: [...PAGE, q('familleId', UUID)] }],
   ['get', '/poles/{id}', 'Référentiel', 'Détail d\'un pôle.', TOUS, {}],
   ['post', '/poles', 'Référentiel', 'Crée un pôle.', `${CG}, ${AD}`, { body: { code: 'P09', intitule: 'Nouveau pôle', familleId: '…', responsableId: '…' } }],
+  ['patch', '/poles/{id}', 'Référentiel', 'Modifie la fiche d\'un pôle (intitulé, famille, effectif, implantation, date ; le code seulement si le pôle n\'est jamais entré dans une campagne). Motif obligatoire, tracé.', `${CG}, ${AD}`, { body: { intitule: 'Nouvel intitulé', effectif: 40, motif: 'Correction de la fiche' } }],
+  ['post', '/poles/{id}/supprimer', 'Référentiel', 'Supprime un pôle jamais utilisé (créé par erreur). Refusé (409) dès qu\'il a une campagne, saisie, score, alerte, synthèse ou clé de service : on suspend alors le pôle. Motif obligatoire, tracé.', `${CG}, ${AD}`, { body: { motif: 'Pôle créé par erreur' } }],
   ['get', '/poles/{id}/suspensions', 'Référentiel', 'Historique des suspensions.', TOUS, {}],
   ['post', '/poles/{id}/suspensions', 'Référentiel', 'Suspend un pôle (motif obligatoire).', `${CG}, ${AD}`, { body: { motif: '…', dateDebut: '2027-01-01' } }],
+  ['patch', '/poles/{id}/suspensions/{suspensionId}', 'Référentiel', 'Corrige une suspension (motif, dates). Les campagnes déjà ouvertes gardent leur périmètre.', `${CG}, ${AD}`, { body: { dateFin: '2026-11-10' } }],
+  ['post', '/poles/{id}/suspensions/{suspensionId}/supprimer', 'Référentiel', 'Supprime une suspension ajoutée par erreur. Motif obligatoire, tracé.', `${CG}, ${AD}`, { body: { motif: 'Suspension saisie par erreur' } }],
+  ['patch', '/cibles/{id}', 'Cibles', 'Corrige la valeur d\'une cible (la validation est à refaire). Refusé si la cible est validée et l\'exercice déjà ouvert.', `${CG}, ${AD}`, { body: { valeurCible: 400 } }],
+  ['post', '/cibles/{id}/supprimer', 'Cibles', 'Supprime une cible créée par erreur. Motif obligatoire, tracé.', `${CG}, ${AD}`, { body: { motif: 'Cible saisie par erreur' } }],
+  ['post', '/criteres/{id}/supprimer', 'Référentiel', 'Supprime un critère jamais utilisé (aucune cible, grille, campagne, saisie ni score). Motif obligatoire, tracé.', `${CG}, ${AD}`, { body: { motif: 'Critère créé par erreur' } }],
+  ['patch', '/utilisateurs/{id}', 'Administration', 'Corrige le nom, le prénom ou l\'e-mail d\'un compte. Motif obligatoire, tracé.', AD, { body: { prenom: 'Voahangy', motif: 'Faute de frappe' } }],
+  ['post', '/utilisateurs/{id}/supprimer', 'Administration', 'Supprime un compte créé par erreur. Refusé (409) s\'il a déjà servi : on le désactive alors. Motif obligatoire, tracé.', AD, { body: { motif: 'Compte créé par erreur' } }],
+  ['patch', '/campagnes/{id}', 'Campagnes', 'Corrige la date limite d\'une campagne ouverte. Motif obligatoire, tracé.', CG, { body: { dateLimite: '2027-08-15', motif: 'Délai prolongé' } }],
+  ['post', '/campagnes/{id}/supprimer', 'Campagnes', 'Annule une campagne ouverte par erreur (aucune saisie, score ni synthèse). Motif obligatoire, tracé.', CG, { body: { motif: 'Ouverte par erreur' } }],
+  ['post', '/campagnes/{id}/poles/{poleId}/reprendre', 'Saisies', 'Le responsable reprend ses saisies soumises (pas encore validées) pour les corriger. Motif obligatoire, tracé, contrôle de gestion notifié.', 'RESPONSABLE_POLE', { body: { motif: 'Erreur de frappe sur le chiffre d\'affaires' } }],
+  ['delete', '/campagnes/{id}/poles/{poleId}/criteres/{critereId}', 'Saisies', 'Efface la saisie d\'un critère (brouillon ou renvoyée).', 'RESPONSABLE_POLE', {}],
   ['get', '/familles', 'Référentiel', 'Familles d\'activité.', TOUS, {}],
   ['get', '/axes', 'Référentiel', 'Axes de notation (financier, humain, qualité).', TOUS, {}],
   ['get', '/criteres', 'Référentiel', 'Critères.', TOUS, { query: PAGE }],
@@ -74,6 +87,7 @@ const OPS = [
   ['post', '/campagnes/{id}/simuler', 'Campagnes et saisie', 'Simule la notation sans rien enregistrer.', CG, {}],
   ['post', '/campagnes/{id}/cloturer', 'Campagnes et saisie', 'Clôture : calcule, fige les scores et évalue les alertes.', CG, {}],
   ['post', '/campagnes/{id}/rouvrir', 'Campagnes et saisie', 'Rouvre une campagne (motif obligatoire, nouvelle version de score à la reclôture).', `${CG}, ${AD}`, { body: { motif: '…' } }],
+  ['get', '/service/saisies/attendues', 'Saisie par API (clé de service)', 'Campagnes ouvertes du pôle de la clé et critères à renseigner (identifiants, unité, cible). À appeler avant de déposer.', 'clé de service (droit saisie:ecriture)', { serviceLecture: true }],
   ['post', '/service/saisies', 'Saisie par API (clé de service)', 'Dépose une valeur pour un critère du pôle de la clé. Reste en brouillon. Idempotent.', 'clé de service (droit saisie:ecriture)', { service: true, body: { campagne_id: '…', critere_id: '…', valeur_realisee: 98.5, commentaire: 'Export ERP du 30/06' } }],
 
   ['get', '/scores', 'Scores et classements', 'Scores par pôle et campagne (version courante).', `${CG}, ${DG}, ${AD}, ${RP} (son pôle)`, { query: PAGE }],
@@ -110,7 +124,7 @@ function construire() {
       description: 'Identifiant unique de l\'envoi : un renvoi avec la même clé ne crée pas de doublon (200 au lieu de 201).' });
     const op = {
       tags: [tag], summary, description: `**Rôles autorisés :** ${roles}.`, parameters: params,
-      security: o.public ? [] : o.service ? [{ cleDeService: [] }] : [{ jeton: [] }],
+      security: o.public ? [] : (o.service || o.serviceLecture) ? [{ cleDeService: [] }] : [{ jeton: [] }],
       responses: {
         200: { description: 'Succès' },
         400: ERREUR('Données invalides'),

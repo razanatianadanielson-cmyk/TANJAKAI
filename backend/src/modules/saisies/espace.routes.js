@@ -27,4 +27,13 @@ router.post('/:id/poles/:poleId/soumettre', requireRole(ROLES.RESPONSABLE_POLE),
 router.post('/:id/poles/:poleId/valider', requireRole(ROLES.CONTROLE_GESTION), validate({ params: schemas.poleParams }),
   asyncHandler(async (req, res) => res.json(await service.validerPole(req.user, req.valid.params.id, req.valid.params.poleId))));
 
+router.post('/:id/poles/:poleId/reprendre', requireRole(ROLES.RESPONSABLE_POLE), validate({ params: schemas.poleParams, body: schemas.motifBody }),
+  asyncHandler(async (req, res) => res.json(await service.reprendre(req.user, req.valid.params.id, req.valid.params.poleId, req.valid.body))));
+
+router.delete('/:id/poles/:poleId/criteres/:critereId', requireRole(ROLES.RESPONSABLE_POLE), validate({ params: schemas.critereParams }),
+  asyncHandler(async (req, res) => {
+    const { id, poleId, critereId } = req.valid.params;
+    res.json(await service.effacer(req.user, id, poleId, critereId));
+  }));
+
 module.exports = router;

@@ -6,6 +6,7 @@ import { useAsync } from '@/lib/hooks';
 import { nombre, date } from '@/lib/format';
 import { PageHeader, Carte, Erreur, Message, Chargement, Vide, Etat, Champ } from '@/components/ui';
 import { Icone } from '@/components/Icones';
+import Suppression from '@/components/Suppression';
 
 export default function Cibles() {
   const { user } = useAuth();
@@ -17,6 +18,7 @@ export default function Cibles() {
   const [form, setForm] = useState({ poleId: '', critereId: '', valeurCible: '' });
   const [erreur, setErreur] = useState(null);
   const [message, setMessage] = useState('');
+  const [edit, setEdit] = useState(null); // { id, valeur }
 
   const poles = useAsync(() => api('/poles', { query: { limit: 100 } }), []);
   const criteres = useAsync(() => api('/criteres', { query: { limit: 100, valide: 'true' } }), [], propose);
@@ -28,6 +30,13 @@ export default function Cibles() {
       await api('/cibles', { method: 'PUT', body: { poleId: form.poleId, critereId: form.critereId, exercice: Number(exercice), valeurCible: Number(String(form.valeurCible).replace(',', '.')) } });
       setMessage('Cible enregistrée. Elle doit être validée par la direction générale.');
       setForm({ ...form, valeurCible: '' }); cibles.reload();
+    } catch (err) { setErreur(err); }
+  }
+  async function corriger(e) {
+    e.preventDefault(); setErreur(null); setMessage('');
+    try {
+      await api(`/cibles/${edit.id}`, { method: 'PATCH', body: { valeurCible: Number(String(edit.valeur).replace(',', '.')) } });
+      setMessage('Cible corrigée. La direction doit la valider à nouveau.'); setEdit(null); cibles.reload();
     } catch (err) { setErreur(err); }
   }
   async function valider(c) {
@@ -93,15 +102,27 @@ export default function Cibles() {
         {cibles.loading ? <Chargement /> : !liste.length ? <Vide titre="Aucune cible pour cette sélection">{propose ? 'Proposez les cibles de chaque pôle avec le formulaire ci-dessus.' : "Les cibles n'ont pas encore été définies."}</Vide> : (
           <div className="defile">
             <table>
-              <thead><tr><th>Pôle</th><th>Critère</th><th className="num">Cible</th><th>Validation</th>{direction && <th />}</tr></thead>
+              <thead><tr><th>Pôle</th><th>Critère</th><th className="num">Cible</th><th>Validation</th>{(direction || propose) && <th />}</tr></thead>
               <tbody>
                 {liste.map((c) => (
                   <tr key={c.id}>
                     <td><b>{c.poleCode}</b></td>
                     <td>{c.critere}</td>
-                    <td className="num"><b>{nombre(c.valeurCible, 4)}</b> {c.unite}</td>
+                    <td className="num">{edit && edit.id === c.id
+                      ? <form onSubmit={corriger} style={{ display: 'inline-flex', gap: 6 }}><input aria-label="Nouvelle valeur" inputMode="decimal" value={edit.valeur} onChange={(e) => setEdit({ ...edit, valeur: e.target.value })} style={{ width: 110 }} required /><button type="submit">OK</button><button type="button" className="secondaire" onClick={() => setEdit(null)}>Annuler</button></form>
+                      : <><b>{nombre(c.valeurCible, 4)}</b> {c.unite}</>}</td>
                     <td>{c.dateValidation ? <><Etat statut="VALIDEE" /> <small>le {date(c.dateValidation)}</small></> : <Etat statut="X" libelle="En attente" ton="attention" />}</td>
-                    {direction && <td>{!c.dateValidation ? <button type="button" onClick={() => valider(c)}><Icone nom="check" taille={16} />Valider</button> : null}</td>}
+                    {(direction || propose) && (
+                      <td>
+                        {direction && !c.dateValidation ? <button type="button" onClick={() => valider(c)}><Icone nom="check" taille={16} />Valider</button> : null}
+                        {propose && !(edit && edit.id === c.id) && (
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <button type="button" className="secondaire" onClick={() => setEdit({ id: c.id, valeur: String(c.valeurCible) })}><Icone nom="crayon" taille={16} />Modifier</button>
+                            <Suppression chemin={`/cibles/${c.id}`} onFait={() => { setMessage('Cible supprimée.'); cibles.reload(); }} onErreur={setErreur} />
+                          </div>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

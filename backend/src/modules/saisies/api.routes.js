@@ -23,4 +23,8 @@ router.post('/', authenticateServiceKey, requireServiceRight('saisie:ecriture'),
     res.status(r.statut).json({ data: r.saisie, idempotent: r.idempotent, avertissements: r.avertissements || [] });
   }));
 
+// Découverte : campagnes ouvertes du pôle de la clé et critères à renseigner (identifiants, unité, cible)
+router.get('/attendues', authenticateServiceKey, requireServiceRight('saisie:ecriture'),
+  asyncHandler(async (req, res) => res.json(await service.attendues(req.serviceKey))));
+
 module.exports = router;

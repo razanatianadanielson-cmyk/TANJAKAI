@@ -88,6 +88,18 @@ async function soumettre(client, ids) {
     "UPDATE saisie SET statut = 'SOUMISE', date_soumission = now() WHERE id = ANY($1::uuid[])", [ids]);
 }
 
+/** Reprise par le responsable : SOUMISE -> RENVOYEE (statut éditable). Les saisies validées ne sont pas concernées. */
+async function reprendre(client, campagneId, poleId) {
+  const { rows } = await client.query(
+    `UPDATE saisie SET statut = 'RENVOYEE' WHERE campagne_id = $1 AND pole_id = $2 AND statut = 'SOUMISE' RETURNING id`,
+    [campagneId, poleId]);
+  return rows.length;
+}
+
+async function effacer(client, id) {
+  await client.query('DELETE FROM saisie WHERE id = $1', [id]);
+}
+
 async function validerPole(client, campagneId, poleId, userId) {
   const { rows } = await client.query(
     `UPDATE saisie SET statut = 'VALIDEE', valide_par = $3, date_validation = now()
@@ -127,7 +139,7 @@ async function notifier(client, campagneId, destinataireIds, message) {
   }
 }
 
-module.exports = {
+module.exports = { reprendre, effacer,
   campagne, pole, lignes, pieces, trouverSaisie, critereDuPerimetre, inserer, remplacer, soumettre, validerPole,
   avancement, destinatairesControle, notifier,
 };

@@ -18,6 +18,12 @@ router.post('/', requireRole(ROLES.ADMINISTRATEUR), validate({ body: s.creerBody
     res.status(201).json(await service.creer(req.user, req.valid.body));
   }));
 
+router.patch('/:id', requireRole(ROLES.ADMINISTRATEUR), validate({ params: s.idParams, body: s.corrigerBody }),
+  asyncHandler(async (req, res) => res.json(await service.corriger(req.user, req.valid.params.id, req.valid.body))));
+
+router.post('/:id/supprimer', requireRole(ROLES.ADMINISTRATEUR), validate({ params: s.idParams, body: s.desactiverBody }),
+  asyncHandler(async (req, res) => res.json(await service.supprimer(req.user, req.valid.params.id, req.valid.body))));
+
 router.patch('/:id/role', requireRole(ROLES.ADMINISTRATEUR), validate({ params: s.idParams, body: s.modifierBody }),
   asyncHandler(async (req, res) => res.json(await service.changerRole(req.user, req.valid.params.id, req.valid.body))));
 

@@ -34,6 +34,11 @@ function Ligne({ ligne, campagneId, poleId, peutEditer, onChange }) {
     } catch (e) { setErreur(messageErreur(e)); } finally { setOccupe(false); }
   }
 
+  async function effacer() {
+    if (!window.confirm(`Effacer la saisie de « ${ligne.intitule} » ? La ligne redevient vide (pièces jointes comprises).`)) return;
+    setErreur(''); setOccupe(true);
+    try { await api(`/campagnes/${campagneId}/poles/${poleId}/criteres/${ligne.critereId}`, { method: 'DELETE' }); onChange(); } catch (e) { setErreur(messageErreur(e)); } finally { setOccupe(false); }
+  }
   async function deposer(ev) {
     const fichier = ev.target.files && ev.target.files[0];
     ev.target.value = '';
@@ -104,7 +109,7 @@ function Ligne({ ligne, campagneId, poleId, peutEditer, onChange }) {
       </td>
       <td style={{ whiteSpace: 'nowrap' }}>
         <Etat statut={ligne.statut || 'A_SAISIR'} />
-        {editable ? <div style={{ marginTop: 8 }}><button type="button" onClick={enregistrer} disabled={occupe}><Icone nom="disquette" taille={16} />Enregistrer</button></div> : null}
+        {editable ? <div style={{ marginTop: 8 }}><button type="button" onClick={enregistrer} disabled={occupe}><Icone nom="disquette" taille={16} />Enregistrer</button>{ligne.saisieId ? <button type="button" className="secondaire" onClick={effacer} disabled={occupe} style={{ marginLeft: 8 }}><Icone nom="corbeille" taille={16} />Effacer</button> : null}</div> : null}
       </td>
     </tr>
   );
@@ -146,6 +151,15 @@ export default function Saisie() {
 
   const plan = useAsync(() => api(`/campagnes/${campagneId}/poles/${poleId}/saisies`), [campagneId, poleId], Boolean(campagneId && poleId));
 
+  const [reprise, setReprise] = useState(null); // { motif }
+  async function reprendre(e) {
+    e.preventDefault(); setMessage(''); setErreur(null); setEnvoi(true);
+    try {
+      await api(`/campagnes/${campagneId}/poles/${poleId}/reprendre`, { method: 'POST', body: { motif: reprise.motif } });
+      setMessage('Saisies reprises : vous pouvez les corriger puis les soumettre à nouveau.'); setReprise(null);
+      plan.reload(); avancement.reload();
+    } catch (err) { setErreur(err); } finally { setEnvoi(false); }
+  }
   async function soumettre() {
     setMessage(''); setErreur(null); setEnvoi(true);
     try {
@@ -159,6 +173,7 @@ export default function Saisie() {
   const c = p && p.completion;
   const modifiable = Boolean(p && responsable && ['OUVERTE', 'ROUVERTE'].includes(p.campagne.statut));
   const aSoumettre = p ? p.lignes.filter((l) => l.editable && l.saisieId).length : 0;
+  const nbSoumises = p ? p.lignes.filter((l) => l.statut === 'SOUMISE').length : 0;
   const axes = p ? [...new Set(p.lignes.map((l) => l.axe))] : [];
 
   async function exporterSaisies() {
@@ -213,7 +228,16 @@ export default function Saisie() {
                 <Etat statut={p.campagne.statut} />
               </div>
               {modifiable && <button type="button" onClick={soumettre} disabled={envoi || !aSoumettre}><Icone nom="envoyer" taille={16} />Soumettre tout au contrôle</button>}
+              {modifiable && nbSoumises > 0 && !reprise && <button type="button" className="secondaire" onClick={() => setReprise({ motif: '' })}><Icone nom="crayon" taille={16} />Reprendre mes saisies soumises</button>}
             </div>
+            {modifiable && reprise && (
+              <form onSubmit={reprendre} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 12 }}>
+                <small style={{ flexBasis: '100%' }}>Les {nbSoumises} saisie(s) soumises redeviennent modifiables (celles déjà validées ne bougent pas). Le contrôle de gestion en est informé.</small>
+                <input aria-label="Motif de la reprise" placeholder="Pourquoi ? (5 caractères minimum)" value={reprise.motif} onChange={(e) => setReprise({ motif: e.target.value })} required minLength={5} style={{ minWidth: 260 }} />
+                <button type="submit" disabled={envoi || reprise.motif.trim().length < 5}>Reprendre</button>
+                <button type="button" className="secondaire" onClick={() => setReprise(null)}>Annuler</button>
+              </form>
+            )}
           </Carte>
 
           <Carte titre={`${p.pole.code} — ${p.pole.intitule}`} sansMarge>

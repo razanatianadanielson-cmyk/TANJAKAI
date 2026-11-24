@@ -40,4 +40,15 @@ async function majActif(client, id, actif) {
   return rows[0];
 }
 
-module.exports = { lister, trouverPourMiseAJour, inserer, changerRole, polesDuResponsable, majActif };
+async function corriger(client, id, { nom, prenom, email }) {
+  const { rows } = await client.query(
+    `UPDATE utilisateur SET nom = COALESCE($2, nom), prenom = COALESCE($3, prenom), email = COALESCE($4, email) WHERE id = $1
+     RETURNING id, nom, prenom, email, role, actif`, [id, nom ?? null, prenom ?? null, email ?? null]);
+  return rows[0];
+}
+
+async function supprimer(client, id) {
+  await client.query('DELETE FROM utilisateur WHERE id = $1', [id]);
+}
+
+module.exports = { corriger, supprimer, lister, trouverPourMiseAJour, inserer, changerRole, polesDuResponsable, majActif };

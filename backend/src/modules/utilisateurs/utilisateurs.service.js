@@ -94,4 +94,40 @@ async function reactiver(admin, id, { motif }) {
   });
 }
 
-module.exports = { lister, creer, changerRole, desactiver, reactiver, motDePasseProvisoire };
+/** Corrige le nom, le prénom ou l'adresse e-mail d'un compte (le rôle se change à part). Motif obligatoire, tracé. */
+async function corriger(admin, id, { motif, ...champs }) {
+  try {
+    return await db.withTransaction({ userId: admin.id, motif: `Correction de compte : ${motif}` }, async (client) => {
+      const cible = await repo.trouverPourMiseAJour(client, id);
+      if (!cible) throw notFound('Compte introuvable');
+      const maj = await repo.corriger(client, id, champs);
+      // L'adresse sert d'identifiant de connexion : les connexions en cours sont terminées si elle change.
+      if (champs.email && champs.email !== cible.email) await authRepo.revoquerSessionsUtilisateur(client, id, 'EMAIL_MODIFIE', null);
+      return maj;
+    });
+  } catch (err) {
+    if (err.code === '23505') throw conflict('Un compte existe déjà avec cette adresse e-mail');
+    throw err;
+  }
+}
+
+/**
+ * Supprime un compte créé par erreur. Refusé dès que le compte a servi (connexion, action tracée, pôle rattaché,
+ * validation, saisie) : l'historique reste attribuable, on désactive alors le compte.
+ */
+async function supprimer(admin, id, { motif }) {
+  if (id === admin.id) throw forbidden('Vous ne pouvez pas supprimer votre propre compte');
+  try {
+    return await db.withTransaction({ userId: admin.id, motif: `Suppression de compte : ${motif}` }, async (client) => {
+      const cible = await repo.trouverPourMiseAJour(client, id);
+      if (!cible) throw notFound('Compte introuvable');
+      await repo.supprimer(client, id);
+      return { supprime: true, email: cible.email };
+    });
+  } catch (err) {
+    if (err.code === '23503') throw conflict('Ce compte a déjà servi (connexion, saisie, validation ou rattachement) : il ne peut pas être supprimé. Désactivez-le à la place.');
+    throw err;
+  }
+}
+
+module.exports = { corriger, supprimer, lister, creer, changerRole, desactiver, reactiver, motDePasseProvisoire };

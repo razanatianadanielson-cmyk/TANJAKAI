@@ -75,11 +75,19 @@ async function validerLot(client, { exercice, poleId }, userId) {
   return rowCount;
 }
 
+async function majValeur(client, id, valeur) {
+  await client.query('UPDATE cible SET valeur_cible = $2, date_validation = NULL, valide_par = NULL WHERE id = $1', [id, valeur]);
+}
+
+async function supprimer(client, id) {
+  await client.query('DELETE FROM cible WHERE id = $1', [id]);
+}
+
 async function verrouiller(client, id) {
-  const { rows } = await client.query('SELECT id, date_validation FROM cible WHERE id = $1 FOR UPDATE', [id]);
+  const { rows } = await client.query('SELECT id, exercice, date_validation FROM cible WHERE id = $1 FOR UPDATE', [id]);
   return rows[0] || null;
 }
 
 module.exports = {
-  list, findById, trouverParCle, campagneExiste, critereApplicableValide, poleExiste, upsert, valider, validerLot, verrouiller,
+  list, findById, trouverParCle, campagneExiste, critereApplicableValide, poleExiste, upsert, valider, validerLot, verrouiller, majValeur, supprimer,
 };

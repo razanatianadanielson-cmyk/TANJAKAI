@@ -55,6 +55,25 @@ async function listSuspensions(poleId) {
   return rows;
 }
 
+async function verrouillerSuspension(client, poleId, suspensionId) {
+  const { rows } = await client.query(
+    `SELECT id, motif, date_debut::text AS "dateDebut", date_fin::text AS "dateFin"
+       FROM suspension_pole WHERE id = $1 AND pole_id = $2 FOR UPDATE`, [suspensionId, poleId]);
+  return rows[0] || null;
+}
+
+async function majSuspension(client, id, { motif, dateDebut, dateFin }) {
+  const { rows } = await client.query(
+    `UPDATE suspension_pole SET motif = $2, date_debut = $3, date_fin = $4 WHERE id = $1
+     RETURNING id, pole_id AS "poleId", motif, date_debut AS "dateDebut", date_fin AS "dateFin"`,
+    [id, motif, dateDebut, dateFin]);
+  return rows[0];
+}
+
+async function supprimerSuspension(client, id) {
+  await client.query('DELETE FROM suspension_pole WHERE id = $1', [id]);
+}
+
 async function verrouiller(client, id) {
   const { rows } = await client.query('SELECT id, code, responsable_id AS "responsableId" FROM pole WHERE id = $1 FOR UPDATE', [id]);
   return rows[0] || null;
@@ -92,7 +111,42 @@ async function notifier(client, campagneId, destinataireId, message) {
     [campagneId, destinataireId, message]);
 }
 
+/** Combien de fois le pôle a déjà servi : campagnes, saisies, scores, alertes, synthèses, clés de service. */
+async function usage(client, id) {
+  const { rows } = await client.query(
+    `SELECT (SELECT count(*) FROM campagne_pole WHERE pole_id = $1)::int AS campagnes,
+            (SELECT count(*) FROM saisie WHERE pole_id = $1)::int AS saisies,
+            (SELECT count(*) FROM score_pole WHERE pole_id = $1)::int AS scores,
+            (SELECT count(*) FROM alerte WHERE pole_id = $1)::int AS alertes,
+            (SELECT count(*) FROM synthese_trimestrielle WHERE pole_id = $1)::int AS syntheses,
+            (SELECT count(*) FROM cle_service WHERE pole_id = $1)::int AS cles`, [id]);
+  return rows[0];
+}
+
+async function familleExiste(client, id) {
+  const { rows } = await client.query('SELECT 1 FROM famille_activite WHERE id = $1', [id]);
+  return rows.length > 0;
+}
+
+const CHAMPS = { code: 'code', intitule: 'intitule', familleId: 'famille_id', effectif: 'effectif', implantation: 'implantation', dateRattachement: 'date_rattachement' };
+
+async function maj(client, id, data) {
+  const sets = []; const params = [id];
+  for (const [cle, colonne] of Object.entries(CHAMPS)) {
+    if (data[cle] !== undefined) { params.push(data[cle]); sets.push(`${colonne} = $${params.length}`); }
+  }
+  await client.query(`UPDATE pole SET ${sets.join(', ')} WHERE id = $1`, params);
+}
+
+/** Suppression d'un pôle jamais utilisé : ses cibles (jamais gelées dans une campagne) partent avec lui, ses suspensions en cascade. */
+async function supprimer(client, id) {
+  const c = await client.query('DELETE FROM cible WHERE pole_id = $1', [id]);
+  await client.query('DELETE FROM pole WHERE id = $1', [id]);
+  return c.rowCount;
+}
+
 module.exports = {
+  usage, familleExiste, maj, supprimer, verrouillerSuspension, majSuspension, supprimerSuspension,
   list, findById, insert, insertSuspension, listSuspensions,
   verrouiller, responsableValide, majResponsable, transfererSaisies, campagneEnCours, notifier,
 };

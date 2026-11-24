@@ -7,6 +7,7 @@ import { useAsync } from '@/lib/hooks';
 import { trimestre, date, dateHeure, nombre } from '@/lib/format';
 import { PageHeader, Carte, Erreur, Message, Chargement, Vide, Etat, Champ } from '@/components/ui';
 import { Icone } from '@/components/Icones';
+import BoutonSupprimer from '@/components/Suppression';
 
 export default function Campagnes() {
   const { user } = useAuth();
@@ -27,6 +28,7 @@ export default function Campagnes() {
   const [resultat, setResultat] = useState(null);
   const [motif, setMotif] = useState('');
   const [occupe, setOccupe] = useState(false);
+  const [dl, setDl] = useState(null); // { id, dateLimite, motif }
 
   const validees = ((grilles.data && grilles.data.data) || []).filter((g) => g.statut === 'VALIDEE');
   const versionDe = (id) => { const g = ((grilles.data && grilles.data.data) || []).find((x) => x.id === id); return g ? `v${g.version}` : '—'; };
@@ -36,6 +38,11 @@ export default function Campagnes() {
     try { const r = await fn(); if (ok) setMessage(typeof ok === 'function' ? ok(r) : ok); campagnes.reload(); return r; } catch (e) { setErreur(e); return null; } finally { setOccupe(false); }
   }
 
+  async function corrigerDate(e) {
+    e.preventDefault();
+    const ok = await agir(() => api(`/campagnes/${dl.id}`, { method: 'PATCH', body: { dateLimite: dl.dateLimite, motif: dl.motif } }), 'Date limite corrigée.');
+    if (ok) setDl(null);
+  }
   async function ouvrir(e) {
     e.preventDefault();
     setAvertissements([]);
@@ -123,6 +130,16 @@ export default function Campagnes() {
                         {cg && c.statut !== 'CLOTUREE' && <button type="button" onClick={() => cloturer(c)} disabled={occupe}><Icone nom="cadenas" taille={16} />Clôturer</button>}
                         {peutRouvrir && c.statut === 'CLOTUREE' && <button type="button" className="secondaire" onClick={() => { setSelection({ id: c.id, mode: 'rouvrir' }); setResultat(null); }}>Rouvrir</button>}
                         {cg && <Link className="bouton secondaire" href={`/controle?campagne=${c.id}`}>Contrôler</Link>}
+                        {cg && c.statut === 'OUVERTE' && !(dl && dl.id === c.id) && <button type="button" className="secondaire" onClick={() => setDl({ id: c.id, dateLimite: String(c.dateLimite).slice(0, 10), motif: '' })}><Icone nom="crayon" taille={16} />Date limite</button>}
+                        {cg && c.statut === 'OUVERTE' && <BoutonSupprimer libelle="Annuler la campagne" chemin={`/campagnes/${c.id}`} onFait={() => { setMessage('Campagne annulée.'); campagnes.reload(); }} onErreur={setErreur} avertissement="Possible seulement si aucune saisie n'a été faite. Les cibles restent, vous pourrez ouvrir à nouveau." />}
+                        {cg && dl && dl.id === c.id && (
+                          <form onSubmit={corrigerDate} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <input aria-label="Nouvelle date limite" type="date" value={dl.dateLimite} onChange={(e) => setDl({ ...dl, dateLimite: e.target.value })} required />
+                            <input aria-label="Motif" placeholder="Motif (5 caractères minimum)" value={dl.motif} onChange={(e) => setDl({ ...dl, motif: e.target.value })} required minLength={5} />
+                            <button type="submit" disabled={occupe || dl.motif.trim().length < 5}>Enregistrer</button>
+                            <button type="button" className="secondaire" onClick={() => setDl(null)}>Annuler</button>
+                          </form>
+                        )}
                       </div>
                     </td>
                   </tr>

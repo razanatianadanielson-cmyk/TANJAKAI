@@ -25,4 +25,12 @@ const desactiverBody = z.object({
   motif: z.string().trim().min(5, 'Motif obligatoire (5 caractères minimum)').max(500),
 });
 
-module.exports = { ROLES, idParams, listQuery, creerBody, modifierBody, desactiverBody };
+// Corriger l'identité d'un compte (faute de frappe) : motif obligatoire, tracé
+const corrigerBody = z.object({
+  nom: z.string().trim().min(2).max(80).optional(),
+  prenom: z.string().trim().min(2).max(80).optional(),
+  email: z.string().trim().toLowerCase().email('Adresse e-mail invalide').max(160).optional(),
+  motif: z.string().trim().min(5, 'Motif obligatoire (5 caractères minimum)').max(500),
+}).refine((d) => d.nom !== undefined || d.prenom !== undefined || d.email !== undefined, { message: 'Aucun champ à modifier' });
+
+module.exports = { corrigerBody, ROLES, idParams, listQuery, creerBody, modifierBody, desactiverBody };

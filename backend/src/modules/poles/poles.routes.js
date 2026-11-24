@@ -23,12 +23,39 @@ router.patch(
   asyncHandler(controller.changerResponsable),
 );
 
+router.patch(
+  '/:id',
+  requireRole(ROLES.CONTROLE_GESTION, ROLES.ADMINISTRATEUR),
+  validate({ params: schemas.idParams, body: schemas.updateBody }),
+  asyncHandler(controller.modifier),
+);
+
+router.post(
+  '/:id/supprimer',
+  requireRole(ROLES.CONTROLE_GESTION, ROLES.ADMINISTRATEUR),
+  validate({ params: schemas.idParams, body: schemas.supprimerBody }),
+  asyncHandler(controller.supprimer),
+);
+
 router.get('/:id/suspensions', validate({ params: schemas.idParams }), asyncHandler(controller.suspensions));
 router.post(
   '/:id/suspensions',
   requireRole(ROLES.CONTROLE_GESTION, ROLES.ADMINISTRATEUR),
   validate({ params: schemas.idParams, body: schemas.suspensionBody }),
   asyncHandler(controller.suspendre),
+);
+
+router.patch(
+  '/:id/suspensions/:suspensionId',
+  requireRole(ROLES.CONTROLE_GESTION, ROLES.ADMINISTRATEUR),
+  validate({ params: schemas.suspensionParams, body: schemas.suspensionUpdateBody }),
+  asyncHandler(controller.modifierSuspension),
+);
+router.post(
+  '/:id/suspensions/:suspensionId/supprimer',
+  requireRole(ROLES.CONTROLE_GESTION, ROLES.ADMINISTRATEUR),
+  validate({ params: schemas.suspensionParams, body: schemas.suspensionSupprimerBody }),
+  asyncHandler(controller.supprimerSuspension),
 );
 
 module.exports = router;

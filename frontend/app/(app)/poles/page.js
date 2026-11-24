@@ -6,12 +6,21 @@ import { useAsync } from '@/lib/hooks';
 import { date } from '@/lib/format';
 import { PageHeader, Carte, Erreur, Message, Chargement, Vide, Etat, Champ } from '@/components/ui';
 import { Icone } from '@/components/Icones';
+import BoutonSupprimer from '@/components/Suppression';
 
 function Suspensions({ pole, gestion }) {
   const liste = useAsync(() => api(`/poles/${pole.id}/suspensions`), [pole.id]);
   const [form, setForm] = useState({ motif: '', dateDebut: '', dateFin: '' });
   const [erreur, setErreur] = useState(null);
+  const [edit, setEdit] = useState(null); // { id, motif, dateDebut, dateFin }
 
+  async function corriger(e) {
+    e.preventDefault(); setErreur(null);
+    try {
+      await api(`/poles/${pole.id}/suspensions/${edit.id}`, { method: 'PATCH', body: { motif: edit.motif, dateDebut: edit.dateDebut, dateFin: edit.dateFin } });
+      setEdit(null); liste.reload();
+    } catch (err) { setErreur(err); }
+  }
   async function ajouter(e) {
     e.preventDefault(); setErreur(null);
     try { await api(`/poles/${pole.id}/suspensions`, { method: 'POST', body: form }); setForm({ motif: '', dateDebut: '', dateFin: '' }); liste.reload(); } catch (err) { setErreur(err); }
@@ -22,7 +31,28 @@ function Suspensions({ pole, gestion }) {
       <Erreur erreur={erreur || liste.error} />
       {!items.length ? <small>Aucune suspension de notation.</small> : (
         <ul style={{ margin: '0 0 10px', paddingLeft: 18 }}>
-          {items.map((s) => <li key={s.id}>Du {date(s.dateDebut)} au {date(s.dateFin)} — {s.motif}</li>)}
+          {items.map((s) => (
+            <li key={s.id} style={{ marginBottom: 8 }}>
+              {edit && edit.id === s.id ? (
+                <form onSubmit={corriger} className="grille-champs">
+                  <Champ label="Motif" id={`em-${s.id}`}><input id={`em-${s.id}`} value={edit.motif} onChange={(e) => setEdit({ ...edit, motif: e.target.value })} required /></Champ>
+                  <Champ label="Du" id={`ed-${s.id}`}><input id={`ed-${s.id}`} type="date" value={edit.dateDebut} onChange={(e) => setEdit({ ...edit, dateDebut: e.target.value })} required /></Champ>
+                  <Champ label="Au" id={`ef-${s.id}`}><input id={`ef-${s.id}`} type="date" value={edit.dateFin} onChange={(e) => setEdit({ ...edit, dateFin: e.target.value })} required /></Champ>
+                  <div className="champ" style={{ alignSelf: 'end', display: 'flex', gap: 8 }}><button type="submit">Enregistrer</button><button type="button" className="secondaire" onClick={() => setEdit(null)}>Annuler</button></div>
+                </form>
+              ) : (
+                <>
+                  Du {date(s.dateDebut)} au {date(s.dateFin)} — {s.motif}
+                  {gestion && (
+                    <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap', marginLeft: 12, verticalAlign: 'middle' }}>
+                      <button type="button" className="secondaire" onClick={() => setEdit({ id: s.id, motif: s.motif, dateDebut: String(s.dateDebut).slice(0, 10), dateFin: String(s.dateFin).slice(0, 10) })}><Icone nom="crayon" taille={16} />Modifier</button>
+                      <BoutonSupprimer chemin={`/poles/${pole.id}/suspensions/${s.id}`} onFait={liste.reload} onErreur={setErreur} />
+                    </span>
+                  )}
+                </>
+              )}
+            </li>
+          ))}
         </ul>
       )}
       {gestion && (
@@ -68,6 +98,70 @@ function Rattachement({ pole, responsables, onFait }) {
   );
 }
 
+function Modification({ pole, familles, onFait }) {
+  const [f, setF] = useState({
+    code: pole.code, intitule: pole.intitule, familleId: pole.familleId, effectif: pole.effectif ?? '',
+    implantation: pole.implantation || '', dateRattachement: (pole.dateRattachement || '').slice(0, 10), motif: '',
+  });
+  const [erreur, setErreur] = useState(null);
+  const [occupe, setOccupe] = useState(false);
+
+  async function valider(e) {
+    e.preventDefault(); setErreur(null);
+    const body = { motif: f.motif };
+    if (f.code !== pole.code) body.code = f.code;
+    if (f.intitule !== pole.intitule) body.intitule = f.intitule;
+    if (f.familleId !== pole.familleId) body.familleId = f.familleId;
+    if (String(f.effectif) !== String(pole.effectif ?? '')) body.effectif = f.effectif === '' ? null : Number(f.effectif);
+    if (f.implantation !== (pole.implantation || '')) body.implantation = f.implantation === '' ? null : f.implantation;
+    if (f.dateRattachement !== (pole.dateRattachement || '').slice(0, 10)) body.dateRattachement = f.dateRattachement;
+    if (Object.keys(body).length === 1) { setErreur({ message: 'Aucune modification à enregistrer.' }); return; }
+    setOccupe(true);
+    try { await api(`/poles/${pole.id}`, { method: 'PATCH', body }); onFait(`Le pôle ${f.code} a été modifié.`); } catch (err) { setErreur(err); } finally { setOccupe(false); }
+  }
+  const id = (k) => `m${k}-${pole.id}`;
+  return (
+    <form onSubmit={valider} style={{ padding: '4px 0 8px' }}>
+      <Erreur erreur={erreur} />
+      <div className="grille-champs">
+        <Champ label="Code" id={id('c')} aide="Ne peut plus changer une fois le pôle entré dans une campagne."><input id={id('c')} value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} required /></Champ>
+        <Champ label="Intitulé" id={id('i')}><input id={id('i')} value={f.intitule} onChange={(e) => setF({ ...f, intitule: e.target.value })} required /></Champ>
+        <Champ label="Famille d'activité" id={id('f')}>
+          <select id={id('f')} value={f.familleId} onChange={(e) => setF({ ...f, familleId: e.target.value })}>
+            {familles.map((x) => <option key={x.id} value={x.id}>{x.libelle}</option>)}
+          </select>
+        </Champ>
+        <Champ label="Effectif" id={id('e')}><input id={id('e')} type="number" min="0" value={f.effectif} onChange={(e) => setF({ ...f, effectif: e.target.value })} /></Champ>
+        <Champ label="Implantation" id={id('l')}><input id={id('l')} value={f.implantation} onChange={(e) => setF({ ...f, implantation: e.target.value })} /></Champ>
+        <Champ label="Date de rattachement" id={id('d')}><input id={id('d')} type="date" value={f.dateRattachement} onChange={(e) => setF({ ...f, dateRattachement: e.target.value })} required /></Champ>
+        <Champ label="Motif (obligatoire)" id={id('m')}><input id={id('m')} value={f.motif} onChange={(e) => setF({ ...f, motif: e.target.value })} placeholder="Ex. : correction de la fiche" /></Champ>
+      </div>
+      <button type="submit" disabled={occupe || f.motif.trim().length < 5}><Icone nom="disquette" taille={16} />Enregistrer les modifications</button>
+    </form>
+  );
+}
+
+function Suppression({ pole, onFait }) {
+  const [motif, setMotif] = useState('');
+  const [erreur, setErreur] = useState(null);
+  const [occupe, setOccupe] = useState(false);
+
+  async function supprimer(e) {
+    e.preventDefault(); setErreur(null); setOccupe(true);
+    try { await api(`/poles/${pole.id}/supprimer`, { method: 'POST', body: { motif } }); onFait(`Le pôle ${pole.code} a été supprimé.`); } catch (err) { setErreur(err); } finally { setOccupe(false); }
+  }
+  return (
+    <form onSubmit={supprimer} style={{ padding: '4px 0 8px' }}>
+      <Message type="attention">Supprimer le pôle {pole.code} efface aussi ses cibles. C'est possible seulement s'il n'a jamais servi (aucune campagne, saisie, score ni alerte). Sinon, utilisez une suspension. L'action reste inscrite au journal d'audit.</Message>
+      <Erreur erreur={erreur} />
+      <div className="grille-champs">
+        <Champ label="Motif (obligatoire)" id={`sx-${pole.id}`}><input id={`sx-${pole.id}`} value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Ex. : pôle créé par erreur" /></Champ>
+        <div className="champ" style={{ alignSelf: 'end' }}><button type="submit" className="danger" disabled={occupe || motif.trim().length < 5}><Icone nom="corbeille" taille={16} />Supprimer le pôle</button></div>
+      </div>
+    </form>
+  );
+}
+
 export default function Poles() {
   const { user } = useAuth();
   const gestion = user.role === ROLES.CONTROLE_GESTION || user.role === ROLES.ADMINISTRATEUR;
@@ -77,6 +171,8 @@ export default function Poles() {
   const [ouvert, setOuvert] = useState(false);
   const [detail, setDetail] = useState('');
   const [ratt, setRatt] = useState('');
+  const [modif, setModif] = useState('');
+  const [sup, setSup] = useState('');
   const [form, setForm] = useState({ code: '', intitule: '', familleId: '', responsableId: '', effectif: '', implantation: '', dateRattachement: '' });
   const [nouvelleFamille, setNouvelleFamille] = useState('');
   const [erreur, setErreur] = useState(null);
@@ -165,11 +261,15 @@ export default function Poles() {
                       <td><Etat statut={p.statut} /></td>
                       <td>
                         <div className="actions-form">
+                          {gestion && <button type="button" className="secondaire" onClick={() => { setModif(modif === p.id ? '' : p.id); setSup(''); }} aria-expanded={modif === p.id}><Icone nom="crayon" taille={16} />Modifier</button>}
                           {gestion && <button type="button" className="secondaire" onClick={() => setRatt(ratt === p.id ? '' : p.id)} aria-expanded={ratt === p.id}>Responsable</button>}
                           <button type="button" className="secondaire" onClick={() => setDetail(detail === p.id ? '' : p.id)} aria-expanded={detail === p.id}><Icone nom="horloge" taille={16} />Suspensions</button>
+                          {gestion && <button type="button" className="secondaire" onClick={() => { setSup(sup === p.id ? '' : p.id); setModif(''); }} aria-expanded={sup === p.id}><Icone nom="corbeille" taille={16} />Supprimer</button>}
                         </div>
                       </td>
                     </tr>
+                    {modif === p.id && gestion && <tr><td colSpan={8}><Modification pole={p} familles={listeFamilles} onFait={(m) => { setMessage(m); setModif(''); poles.reload(); }} /></td></tr>}
+                    {sup === p.id && gestion && <tr><td colSpan={8}><Suppression pole={p} onFait={(m) => { setMessage(m); setSup(''); poles.reload(); }} /></td></tr>}
                     {ratt === p.id && gestion && <tr><td colSpan={8}><Rattachement pole={p} responsables={listeResponsables} onFait={(m) => { setMessage(m); setRatt(''); poles.reload(); }} /></td></tr>}
                     {detail === p.id && <tr><td colSpan={8}><Suspensions pole={p} gestion={gestion} /></td></tr>}
                   </Fragment>

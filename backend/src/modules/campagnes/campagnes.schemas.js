@@ -11,4 +11,10 @@ const ouvrirBody = z.object({
 
 const rouvrirBody = z.object({ motif: z.string().trim().min(5, 'Motif obligatoire (5 caractères minimum)').max(500) });
 
-module.exports = { idParams, ouvrirBody, rouvrirBody };
+const dateLimiteBody = z.object({
+  dateLimite: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format attendu : AAAA-MM-JJ'),
+  motif: z.string().trim().min(5, 'Motif obligatoire (5 caractères minimum)').max(500),
+});
+const supprimerBody = z.object({ motif: z.string().trim().min(5, 'Motif obligatoire (5 caractères minimum)').max(500) });
+
+module.exports = { dateLimiteBody, supprimerBody, idParams, ouvrirBody, rouvrirBody };

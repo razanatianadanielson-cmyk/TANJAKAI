@@ -25,4 +25,20 @@ async function changerResponsable(req, res) {
   res.json(await service.changerResponsable(req.user, req.valid.params.id, req.valid.body));
 }
 
-module.exports = { list, getById, create, suspendre, suspensions, changerResponsable };
+async function modifier(req, res) {
+  res.json(await service.modifier(req.user, req.valid.params.id, req.valid.body));
+}
+
+async function supprimer(req, res) {
+  res.json(await service.supprimer(req.user, req.valid.params.id, req.valid.body));
+}
+
+async function modifierSuspension(req, res) {
+  res.json(await service.modifierSuspension(req.user, req.valid.params.id, req.valid.params.suspensionId, req.valid.body));
+}
+
+async function supprimerSuspension(req, res) {
+  res.json(await service.supprimerSuspension(req.user, req.valid.params.id, req.valid.params.suspensionId, req.valid.body));
+}
+
+module.exports = { modifierSuspension, supprimerSuspension, list, getById, create, suspendre, suspensions, changerResponsable, modifier, supprimer };

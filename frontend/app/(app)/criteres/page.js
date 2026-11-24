@@ -6,6 +6,7 @@ import { useAsync } from '@/lib/hooks';
 import { nombre, AXES } from '@/lib/format';
 import { PageHeader, Carte, Erreur, Message, Chargement, Vide, Etat, Champ } from '@/components/ui';
 import { Icone } from '@/components/Icones';
+import Suppression from '@/components/Suppression';
 
 const VIDE = { axeId: '', intitule: '', definition: '', unite: '%', sensOptimisation: 'MAXIMISER', sourceDonnee: '', justificatifRequis: false, valeurMin: '', valeurMax: '', variationMaxPct: '' };
 
@@ -20,6 +21,7 @@ export default function Criteres() {
   const [ouvert, setOuvert] = useState(false);
   const [erreur, setErreur] = useState(null);
   const [message, setMessage] = useState('');
+  const [edit, setEdit] = useState(null); // critère en cours de correction
 
   const num = (v) => (v === '' ? null : Number(String(v).replace(',', '.')));
 
@@ -32,6 +34,14 @@ export default function Criteres() {
     } catch (err) { setErreur(err); }
   }
 
+  async function corriger(e) {
+    e.preventDefault(); setErreur(null); setMessage('');
+    try {
+      const { intitule, definition, unite, sourceDonnee } = edit;
+      await api(`/criteres/${edit.id}`, { method: 'PATCH', body: { intitule, definition, unite, sourceDonnee } });
+      setMessage('Critère corrigé.'); setEdit(null); criteres.reload();
+    } catch (err) { setErreur(err); }
+  }
   async function valider(c) {
     setErreur(null); setMessage('');
     try { await api(`/criteres/${c.id}/valider`, { method: 'POST' }); setMessage(`Critère « ${c.intitule} » validé.`); criteres.reload(); } catch (err) { setErreur(err); }
@@ -102,13 +112,27 @@ export default function Criteres() {
               <tbody>
                 {liste.map((c) => (
                   <tr key={c.id}>
-                    <td><b>{c.intitule}</b><br /><small>{c.definition}</small><br /><small>Source : {c.sourceDonnee}{c.justificatifRequis ? ' · justificatif exigé' : ''}</small></td>
+                    <td>{edit && edit.id === c.id ? (
+                      <form onSubmit={corriger}>
+                        <Champ label="Intitulé" id={`ei-${c.id}`}><input id={`ei-${c.id}`} value={edit.intitule} onChange={(e) => setEdit({ ...edit, intitule: e.target.value })} required /></Champ>
+                        <Champ label="Définition" id={`ed-${c.id}`}><textarea id={`ed-${c.id}`} value={edit.definition} onChange={(e) => setEdit({ ...edit, definition: e.target.value })} required /></Champ>
+                        <Champ label="Unité" id={`eu-${c.id}`}><input id={`eu-${c.id}`} value={edit.unite} onChange={(e) => setEdit({ ...edit, unite: e.target.value })} required /></Champ>
+                        <Champ label="Source" id={`es-${c.id}`}><input id={`es-${c.id}`} value={edit.sourceDonnee} onChange={(e) => setEdit({ ...edit, sourceDonnee: e.target.value })} required /></Champ>
+                        <div style={{ display: 'flex', gap: 8 }}><button type="submit">Enregistrer</button><button type="button" className="secondaire" onClick={() => setEdit(null)}>Annuler</button></div>
+                      </form>
+                    ) : <><b>{c.intitule}</b><br /><small>{c.definition}</small><br /><small>Source : {c.sourceDonnee}{c.justificatifRequis ? ' · justificatif exigé' : ''}</small></>}</td>
                     <td>{AXES[c.axe] || c.axe}</td>
                     <td>{c.unite}</td>
                     <td>{c.sensOptimisation === 'MINIMISER' ? 'À minimiser' : 'À maximiser'}</td>
                     <td>{c.valeurMin !== null || c.valeurMax !== null ? `${c.valeurMin !== null ? nombre(c.valeurMin) : '−∞'} à ${c.valeurMax !== null ? nombre(c.valeurMax) : '+∞'}` : '—'}</td>
                     <td>{c.valide ? <Etat statut="VALIDEE" /> : <Etat statut="X" libelle="À valider" ton="attention" />}</td>
-                    <td>{cg && !c.valide ? <button type="button" onClick={() => valider(c)}><Icone nom="check" taille={16} />Valider la définition</button> : null}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {cg && !c.valide ? <button type="button" onClick={() => valider(c)}><Icone nom="check" taille={16} />Valider la définition</button> : null}
+                        {gestion && !c.valide && !(edit && edit.id === c.id) ? <button type="button" className="secondaire" onClick={() => setEdit({ id: c.id, intitule: c.intitule, definition: c.definition, unite: c.unite, sourceDonnee: c.sourceDonnee })}><Icone nom="crayon" taille={16} />Modifier</button> : null}
+                        {gestion ? <Suppression chemin={`/criteres/${c.id}`} onFait={() => { setMessage('Critère supprimé.'); criteres.reload(); }} onErreur={setErreur} avertissement="Possible seulement si le critère n'a jamais servi (aucune cible, grille, campagne ni saisie)." /> : null}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

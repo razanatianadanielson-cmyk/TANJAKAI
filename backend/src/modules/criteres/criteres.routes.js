@@ -20,6 +20,9 @@ router.post('/', requireRole(ROLES.CONTROLE_GESTION, ROLES.ADMINISTRATEUR), vali
 router.patch('/:id', requireRole(ROLES.CONTROLE_GESTION, ROLES.ADMINISTRATEUR),
   validate({ params: schemas.idParams, body: schemas.updateBody }),
   asyncHandler(async (req, res) => res.json(await service.update(req.user, req.valid.params.id, req.valid.body))));
+router.post('/:id/supprimer', requireRole(ROLES.CONTROLE_GESTION, ROLES.ADMINISTRATEUR),
+  validate({ params: schemas.idParams, body: schemas.supprimerBody }),
+  asyncHandler(async (req, res) => res.json(await service.supprimer(req.user, req.valid.params.id, req.valid.body))));
 // Validation de la définition : réservée au contrôle de gestion
 router.post('/:id/valider', requireRole(ROLES.CONTROLE_GESTION), validate({ params: schemas.idParams }),
   asyncHandler(async (req, res) => res.json(await service.valider(req.user, req.valid.params.id))));

@@ -27,4 +27,6 @@ const createBody = z.object({ axeId: z.string().uuid(), ...base }).refine(bornes
 const updateBody = z.object({ ...base, justificatifRequis: base.justificatifRequis.optional() })
   .partial().refine((d) => Object.keys(d).length > 0, { message: 'Aucun champ à modifier' }).refine(bornes, MSG_BORNES);
 
-module.exports = { idParams, listQuery, createBody, updateBody };
+const supprimerBody = z.object({ motif: z.string().trim().min(5).max(500) });
+
+module.exports = { supprimerBody, idParams, listQuery, createBody, updateBody };

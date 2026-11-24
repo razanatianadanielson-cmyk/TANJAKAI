@@ -34,6 +34,41 @@
     else $('infoAcces').textContent = 'Échec : ' + (j.error ? j.error.message : r.statut);
   });
 
+  // Démonstration : un « logiciel de pôle » qui n'a que sa clé de service
+  var VALEURS_DEMO = [['chiffre', 450], ['marge', 8], ['rotation', 25], ['absent', 9], ['satisfaction', 60], ['réclamation', 6]];
+  $('demoEnvoi').addEventListener('click', async function () {
+    var sortie = $('demoSortie'); var cle = $('cle').value.trim(); var lignes = [];
+    function dire(t) { lignes.push(t); sortie.textContent = lignes.join('\n'); }
+    if (!cle) { sortie.textContent = 'Collez d\'abord la clé de service dans le champ « Clé de service » en haut de la page.'; return; }
+    try {
+      var d = await appeler('get', BASE + '/service/saisies/attendues', { 'X-Service-Key': cle }, undefined);
+      var j = {}; try { j = JSON.parse(d.texte); } catch (e) { /* ignore */ }
+      if (d.statut !== 200) { dire('Clé refusée ou serveur indisponible (HTTP ' + d.statut + ') : ' + ((j.error && j.error.message) || d.texte)); return; }
+      var camp = (j.campagnes || []).filter(function (c) { return c.criteres.length; })[0];
+      if (!camp) { dire('Aucune campagne ouverte ne contient le pôle de cette clé.'); return; }
+      dire('Campagne T' + camp.trimestre + ' ' + camp.exercice + ' — ' + camp.criteres.length + ' critères à renseigner\n');
+      var premier = null;
+      for (var i = 0; i < VALEURS_DEMO.length; i++) {
+        var mot = VALEURS_DEMO[i][0], valeur = VALEURS_DEMO[i][1];
+        var c = camp.criteres.filter(function (x) { return x.intitule.toLowerCase().indexOf(mot) > -1; })[0];
+        if (!c) { dire('  (critère « ' + mot + ' » absent)'); continue; }
+        var h = { 'Content-Type': 'application/json', 'X-Service-Key': cle, 'Idempotency-Key': 'demo-' + camp.campagneId + '-' + c.critereId };
+        var corps = JSON.stringify({ campagne_id: camp.campagneId, critere_id: c.critereId, valeur_realisee: valeur });
+        var r = await appeler('post', BASE + '/service/saisies', h, corps);
+        var ok = r.statut === 200 || r.statut === 201;
+        var rj = {}; try { rj = JSON.parse(r.texte); } catch (e) { /* ignore */ }
+        dire('  ' + (ok ? 'OK ' : 'ERR') + ' ' + r.statut + '  ' + c.intitule + ' = ' + valeur + (ok ? '' : '  →  ' + ((rj.error && rj.error.message) || '')));
+        if (ok && !premier) premier = { h: h, corps: corps };
+      }
+      if (premier) {
+        var rr = await appeler('post', BASE + '/service/saisies', premier.h, premier.corps);
+        var rrj = {}; try { rrj = JSON.parse(rr.texte); } catch (e) { /* ignore */ }
+        dire('\nRenvoi du premier message (réseau instable) : HTTP ' + rr.statut + ', idempotent = ' + rrj.idempotent + ' → pas de doublon.');
+      }
+      dire('\nLes valeurs sont en BROUILLON : le responsable du pôle les voit dans « Ma saisie » et les soumet.');
+    } catch (e) { dire('Erreur réseau : ' + e.message); }
+  });
+
   function carte(op) {
     var champs = {};
     var resume = el('summary', {}, [el('span', { class: 'm ' + op.method, text: op.method.toUpperCase() }), el('span', { class: 'chemin', text: op.path }), el('span', { class: 'resume', text: op.summary })]);
